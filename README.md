@@ -84,7 +84,7 @@ For Docker-style hosts:
 - build from the included `Dockerfile`
 - the image already installs `ffmpeg`
 - keep using the same environment variables
-- default container command is already `python -m src.transcriber_bot`
+- default container command is already `python -m transcriber_bot`
 
 ## Commands
 
