@@ -101,7 +101,17 @@ class TranscriberBot(discord.Client):
             if channel is None:
                 return
             self.state.set_channel_enabled(channel.id, True)
-            await self._respond_ephemeral(interaction, "Auto-transcription is now enabled in this channel.")
+            LOGGER.info(
+                "transcribe_channel_enabled channel_id=%s channel_type=%s guild_id=%s channel_name=%s",
+                channel.id,
+                type(channel).__name__,
+                interaction.guild.id if interaction.guild else None,
+                getattr(channel, "name", None),
+            )
+            await self._respond_ephemeral(
+                interaction,
+                f"Auto-transcription is now enabled in this channel.\nChannel ID: `{channel.id}`",
+            )
 
         @transcribe_group.command(name="off", description="Disable automatic transcription for this channel.")
         async def transcribe_off(interaction: discord.Interaction) -> None:
@@ -109,7 +119,17 @@ class TranscriberBot(discord.Client):
             if channel is None:
                 return
             self.state.set_channel_enabled(channel.id, False)
-            await self._respond_ephemeral(interaction, "Auto-transcription is now disabled in this channel.")
+            LOGGER.info(
+                "transcribe_channel_disabled channel_id=%s channel_type=%s guild_id=%s channel_name=%s",
+                channel.id,
+                type(channel).__name__,
+                interaction.guild.id if interaction.guild else None,
+                getattr(channel, "name", None),
+            )
+            await self._respond_ephemeral(
+                interaction,
+                f"Auto-transcription is now disabled in this channel.\nChannel ID: `{channel.id}`",
+            )
 
         @transcribe_group.command(name="status", description="Show whether automatic transcription is enabled here.")
         async def transcribe_status(interaction: discord.Interaction) -> None:
@@ -120,7 +140,7 @@ class TranscriberBot(discord.Client):
             status_text = "enabled" if enabled else "disabled"
             await self._respond_ephemeral(
                 interaction,
-                f"Auto-transcription is currently {status_text} in this channel.",
+                f"Auto-transcription is currently {status_text} in this channel.\nChannel ID: `{channel.id}`",
             )
 
         @idea_group.command(name="add", description="Save a tagged idea.")

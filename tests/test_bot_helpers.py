@@ -104,3 +104,8 @@ class BotHelperTests(unittest.IsolatedAsyncioTestCase):
         self.bot._disable_stale_channel(321, reason="unavailable")
 
         self.assertFalse(self.state.is_channel_enabled(321))
+
+    def test_enabled_channel_ids_round_trip_for_debugging(self) -> None:
+        self.state.set_channel_enabled(654, True)
+
+        self.assertEqual(self.state.list_enabled_channel_ids(), [654])
