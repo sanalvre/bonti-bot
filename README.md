@@ -79,6 +79,13 @@ For Wispbyte:
 - install command: `pip install -r requirements.txt`
 - if `large-v3-turbo` is too heavy, switch `TRANSCRIBE_MODEL` to `medium`
 
+For Docker-style hosts:
+
+- build from the included `Dockerfile`
+- the image already installs `ffmpeg`
+- keep using the same environment variables
+- default container command is already `python -m src.transcriber_bot`
+
 ## Commands
 
 - `/transcribe on`
