@@ -332,10 +332,18 @@ class TranscriberBot(discord.Client):
             return
         if not self.state.is_channel_enabled(message.channel.id):
             return
+        LOGGER.info(
+            "message_received channel_id=%s message_id=%s attachments=%s author_id=%s",
+            message.channel.id,
+            message.id,
+            len(message.attachments),
+            message.author.id,
+        )
         if message.id in self._processed_messages:
+            LOGGER.info("message_skipped_duplicate channel_id=%s message_id=%s", message.channel.id, message.id)
             return
         if not self._is_supported_voice_message(message):
-            LOGGER.debug(
+            LOGGER.info(
                 "voice_message_skipped channel_id=%s message_id=%s attachments=%s flags=%s",
                 message.channel.id,
                 message.id,
@@ -345,6 +353,7 @@ class TranscriberBot(discord.Client):
             return
 
         self._remember_processed(message.id)
+        LOGGER.info("voice_message_accepted channel_id=%s message_id=%s", message.channel.id, message.id)
         asyncio.create_task(self._process_voice_message(message))
 
     def _is_supported_voice_message(self, message: discord.Message) -> bool:
@@ -354,7 +363,7 @@ class TranscriberBot(discord.Client):
         attachment = message.attachments[0]
         content_type = attachment.content_type or ""
         filename = (attachment.filename or "").lower()
-        is_audio = content_type.startswith("audio/") or filename.endswith((".ogg", ".oga", ".mp3", ".wav", ".m4a", ".webm"))
+        is_audio = content_type.startswith("audio/") or filename.endswith((".ogg", ".oga", ".mp3", ".wav", ".m4a", ".webm", ".aac", ".opus"))
 
         try:
             is_voice_message = attachment.is_voice_message()
@@ -363,10 +372,22 @@ class TranscriberBot(discord.Client):
 
         has_voice_fields = getattr(attachment, "duration", None) is not None or getattr(attachment, "waveform", None) is not None
         has_voice_flag = bool(getattr(message.flags, "voice", False))
-        return is_audio and (is_voice_message or has_voice_fields or has_voice_flag)
+        LOGGER.info(
+            "voice_message_check channel_id=%s message_id=%s filename=%s content_type=%s is_audio=%s attachment_voice=%s has_voice_fields=%s has_voice_flag=%s",
+            message.channel.id,
+            message.id,
+            attachment.filename,
+            attachment.content_type,
+            is_audio,
+            is_voice_message,
+            has_voice_fields,
+            has_voice_flag,
+        )
+        return is_audio
 
     async def _process_voice_message(self, message: discord.Message) -> None:
         channel_lock = self.channel_locks.setdefault(message.channel.id, asyncio.Lock())
+        LOGGER.info("voice_message_queue_start channel_id=%s message_id=%s", message.channel.id, message.id)
         async with channel_lock:
             async with self.global_semaphore:
                 await self._handle_voice_message(message)
@@ -393,7 +414,14 @@ class TranscriberBot(discord.Client):
             return
 
         try:
+            LOGGER.info("voice_message_download_start channel_id=%s message_id=%s", message.channel.id, message.id)
             audio_bytes = await self._download_attachment_with_retry(attachment)
+            LOGGER.info(
+                "voice_message_download_complete channel_id=%s message_id=%s bytes=%s",
+                message.channel.id,
+                message.id,
+                len(audio_bytes),
+            )
             transcript = await self.transcriber.transcribe_bytes(audio_bytes)
             if not self.state.is_channel_enabled(message.channel.id):
                 self._log_transcription_result(message, duration, "channel_disabled_mid_run", language=transcript.language)
@@ -434,6 +462,11 @@ class TranscriberBot(discord.Client):
                 return await attachment.read()
             except discord.HTTPException as exc:
                 last_error = exc
+                LOGGER.warning(
+                    "attachment_download_retry attachment_id=%s attempt=%s",
+                    attachment.id,
+                    attempt + 1,
+                )
                 if attempt == 0:
                     await asyncio.sleep(1.0)
         raise TranscriptionError("Failed to download the voice message from Discord.") from last_error
