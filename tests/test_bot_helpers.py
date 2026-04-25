@@ -97,3 +97,10 @@ class BotHelperTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertTrue(self.bot._is_supported_voice_message(message))
+
+    def test_disable_stale_channel_turns_off_channel_state(self) -> None:
+        self.state.set_channel_enabled(321, True)
+
+        self.bot._disable_stale_channel(321, reason="unavailable")
+
+        self.assertFalse(self.state.is_channel_enabled(321))

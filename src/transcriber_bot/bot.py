@@ -513,11 +513,17 @@ class TranscriberBot(discord.Client):
                 try:
                     channel = await self.fetch_channel(channel_id)
                 except discord.HTTPException:
-                    LOGGER.warning("message_poll_channel_unavailable channel_id=%s", channel_id)
+                    self._disable_stale_channel(
+                        channel_id,
+                        reason="unavailable",
+                    )
                     continue
 
             if not isinstance(channel, (discord.TextChannel, discord.Thread)):
-                LOGGER.info("message_poll_channel_unsupported channel_id=%s channel_type=%s", channel_id, type(channel).__name__)
+                self._disable_stale_channel(
+                    channel_id,
+                    reason=f"unsupported:{type(channel).__name__}",
+                )
                 continue
 
             permissions = channel.permissions_for(channel.guild.me) if channel.guild and channel.guild.me else None
@@ -541,6 +547,14 @@ class TranscriberBot(discord.Client):
                     await self._maybe_schedule_voice_message(message, source="poll")
             except discord.HTTPException:
                 LOGGER.exception("message_poll_history_failed channel_id=%s", channel_id)
+
+    def _disable_stale_channel(self, channel_id: int, *, reason: str) -> None:
+        self.state.set_channel_enabled(channel_id, False)
+        LOGGER.warning(
+            "message_poll_channel_disabled channel_id=%s reason=%s",
+            channel_id,
+            reason,
+        )
 
     async def _respond_ephemeral(self, interaction: discord.Interaction, text: str) -> None:
         if interaction.response.is_done():
