@@ -10,6 +10,7 @@ from typing import Optional
 class AppConfig:
     discord_bot_token: str
     model_name: str = "large-v3-turbo"
+    model_fallbacks: tuple[str, ...] = ("medium", "small")
     ffmpeg_path: str = "ffmpeg"
     db_path: Path = Path("bot_state.sqlite3")
     max_audio_seconds: int = 240
@@ -34,6 +35,12 @@ def _read_int(name: str, default: int) -> int:
     return int(raw_value)
 
 
+def _read_model_fallbacks() -> tuple[str, ...]:
+    raw_value = os.getenv("TRANSCRIBE_MODEL_FALLBACKS", "medium,small")
+    values = [item.strip() for item in raw_value.split(",")]
+    return tuple(item for item in values if item)
+
+
 def load_config() -> AppConfig:
     token = os.getenv("DISCORD_BOT_TOKEN", "").strip()
     if not token:
@@ -42,6 +49,7 @@ def load_config() -> AppConfig:
     return AppConfig(
         discord_bot_token=token,
         model_name=os.getenv("TRANSCRIBE_MODEL", "large-v3-turbo").strip() or "large-v3-turbo",
+        model_fallbacks=_read_model_fallbacks(),
         ffmpeg_path=os.getenv("FFMPEG_PATH", "ffmpeg").strip() or "ffmpeg",
         db_path=Path(os.getenv("BOT_DB_PATH", "bot_state.sqlite3")),
         max_audio_seconds=_read_int("MAX_AUDIO_SECONDS", 240),

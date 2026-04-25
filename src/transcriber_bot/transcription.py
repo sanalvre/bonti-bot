@@ -30,6 +30,7 @@ class Transcriber:
     def __init__(self, config: AppConfig) -> None:
         self.config = config
         self._model: Optional[WhisperModel] = None
+        self._loaded_model_name: Optional[str] = None
         self._model_lock = asyncio.Lock()
 
     async def transcribe_bytes(self, audio_bytes: bytes) -> TranscriptResult:
@@ -59,18 +60,44 @@ class Transcriber:
 
         async with self._model_lock:
             if self._model is None:
-                LOGGER.info(
-                    "loading_whisper_model model=%s compute_type=%s",
-                    self.config.model_name,
-                    self.config.compute_type,
+                candidates = [self.config.model_name]
+                candidates.extend(
+                    candidate
+                    for candidate in self.config.model_fallbacks
+                    if candidate and candidate != self.config.model_name
                 )
-                self._model = await asyncio.to_thread(
-                    WhisperModel,
-                    self.config.model_name,
-                    device="cpu",
-                    compute_type=self.config.compute_type,
-                    download_root=str(self.config.hf_home) if self.config.hf_home is not None else None,
-                )
+                last_error: Optional[Exception] = None
+                for model_name in candidates:
+                    try:
+                        LOGGER.info(
+                            "loading_whisper_model model=%s compute_type=%s",
+                            model_name,
+                            self.config.compute_type,
+                        )
+                        self._model = await asyncio.to_thread(
+                            WhisperModel,
+                            model_name,
+                            device="cpu",
+                            compute_type=self.config.compute_type,
+                            download_root=str(self.config.hf_home) if self.config.hf_home is not None else None,
+                        )
+                        self._loaded_model_name = model_name
+                        if model_name != self.config.model_name:
+                            LOGGER.warning(
+                                "whisper_model_fallback_active requested=%s active=%s",
+                                self.config.model_name,
+                                model_name,
+                            )
+                        break
+                    except Exception as exc:
+                        last_error = exc
+                        LOGGER.warning("whisper_model_load_failed model=%s", model_name, exc_info=True)
+
+                if self._model is None:
+                    raise TranscriptionError(
+                        "The transcription model could not be loaded on this host. "
+                        "Try a lighter model like `medium` or `small`."
+                    ) from last_error
         return self._model
 
     def _decode_audio_to_float32(self, audio_bytes: bytes) -> np.ndarray:
