@@ -1,8 +1,7 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -11,13 +10,16 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
+COPY pyproject.toml ./
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-COPY src/transcriber_bot ./transcriber_bot
+COPY src ./src
 COPY README.md ./README.md
 COPY .env.example ./.env.example
 COPY start.txt ./start.txt
+
+RUN pip install --no-cache-dir .
 
 CMD ["python", "-m", "transcriber_bot"]

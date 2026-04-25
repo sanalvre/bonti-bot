@@ -85,6 +85,7 @@ For Docker-style hosts:
 - the image already installs `ffmpeg`
 - keep using the same environment variables
 - default container command is already `python -m transcriber_bot`
+- the bot is packaged and installed into the image, so the host does not need to rely on the working directory
 
 ## Commands
 

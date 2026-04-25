@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bonti-bot"
+version = "0.1.0"
+description = "Personal Discord bot for transcription, notes, reminders, and search."
+requires-python = ">=3.10"
+dependencies = [
+    "discord.py>=2.4.0,<3.0.0",
+    "faster-whisper>=1.1.0,<2.0.0",
+    "numpy>=1.26.0,<3.0.0",
+    "tzdata>=2024.1",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
