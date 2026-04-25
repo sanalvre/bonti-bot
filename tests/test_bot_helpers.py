@@ -92,6 +92,8 @@ class BotHelperTests(unittest.IsolatedAsyncioTestCase):
         message = SimpleNamespace(
             attachments=[attachment],
             flags=SimpleNamespace(voice=False),
+            channel=SimpleNamespace(id=777),
+            id=888,
         )
 
         self.assertTrue(self.bot._is_supported_voice_message(message))

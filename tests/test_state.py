@@ -20,8 +20,10 @@ class BotStateTests(unittest.TestCase):
     def test_enable_and_disable_channel(self) -> None:
         self.state.set_channel_enabled(123, True)
         self.assertTrue(self.state.is_channel_enabled(123))
+        self.assertEqual(self.state.list_enabled_channel_ids(), [123])
         self.state.set_channel_enabled(123, False)
         self.assertFalse(self.state.is_channel_enabled(123))
+        self.assertEqual(self.state.list_enabled_channel_ids(), [])
 
     def test_add_search_and_mark_ideas(self) -> None:
         created = self.state.add_idea(99, "business", "Launch a private note bot.", "open")
@@ -45,4 +47,3 @@ class BotStateTests(unittest.TestCase):
         self.state.mark_reminder_sent(reminder.reminder_id)
         due_after_send = self.state.get_due_reminders(datetime.now(timezone.utc))
         self.assertEqual(due_after_send, [])
-

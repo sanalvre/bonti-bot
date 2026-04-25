@@ -99,6 +99,13 @@ class BotState:
             ).fetchone()
         return row is not None
 
+    def list_enabled_channel_ids(self) -> list[int]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT channel_id FROM enabled_channels ORDER BY enabled_at ASC"
+            ).fetchall()
+        return [int(row["channel_id"]) for row in rows]
+
     def add_idea(self, user_id: int, category: str, content: str, marker: str) -> IdeaRecord:
         now = self._iso_now()
         with self._connect() as connection:

@@ -46,6 +46,7 @@ class TranscriberBot(discord.Client):
         self._processed_limit = 2048
         self._attachment_text_cache: OrderedDict[int, str] = OrderedDict()
         self._attachment_text_cache_limit = 256
+        self._message_poll_task: Optional[asyncio.Task[None]] = None
         try:
             self._timezone = ZoneInfo(config.local_timezone)
         except ZoneInfoNotFoundError:
@@ -57,6 +58,7 @@ class TranscriberBot(discord.Client):
         self._register_commands()
         await self.tree.sync()
         self._reminder_task = asyncio.create_task(self._reminder_loop(), name="reminder-loop")
+        self._message_poll_task = asyncio.create_task(self._message_poll_loop(), name="message-poll-loop")
         LOGGER.info("slash_commands_synced")
 
     async def close(self) -> None:
@@ -64,6 +66,12 @@ class TranscriberBot(discord.Client):
             self._reminder_task.cancel()
             try:
                 await self._reminder_task
+            except asyncio.CancelledError:
+                pass
+        if self._message_poll_task is not None:
+            self._message_poll_task.cancel()
+            try:
+                await self._message_poll_task
             except asyncio.CancelledError:
                 pass
         await super().close()
@@ -326,14 +334,20 @@ class TranscriberBot(discord.Client):
         LOGGER.info("bot_ready user=%s", self.user)
 
     async def on_message(self, message: discord.Message) -> None:
+        if self.user is None:
+            return
         if message.author.bot:
             return
         if message.guild is None:
             return
         if not self.state.is_channel_enabled(message.channel.id):
             return
+        await self._maybe_schedule_voice_message(message, source="event")
+
+    async def _maybe_schedule_voice_message(self, message: discord.Message, *, source: str) -> None:
         LOGGER.info(
-            "message_received channel_id=%s message_id=%s attachments=%s author_id=%s",
+            "message_received source=%s channel_id=%s message_id=%s attachments=%s author_id=%s",
+            source,
             message.channel.id,
             message.id,
             len(message.attachments),
@@ -353,7 +367,7 @@ class TranscriberBot(discord.Client):
             return
 
         self._remember_processed(message.id)
-        LOGGER.info("voice_message_accepted channel_id=%s message_id=%s", message.channel.id, message.id)
+        LOGGER.info("voice_message_accepted source=%s channel_id=%s message_id=%s", source, message.channel.id, message.id)
         asyncio.create_task(self._process_voice_message(message))
 
     def _is_supported_voice_message(self, message: discord.Message) -> bool:
@@ -480,6 +494,53 @@ class TranscriberBot(discord.Client):
                 message.channel.id,
                 message.id,
             )
+
+    async def _message_poll_loop(self) -> None:
+        await self.wait_until_ready()
+        while not self.is_closed():
+            try:
+                await self._poll_enabled_channels_once()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                LOGGER.exception("message_poll_loop_error")
+            await asyncio.sleep(self.config.message_poll_seconds)
+
+    async def _poll_enabled_channels_once(self) -> None:
+        for channel_id in self.state.list_enabled_channel_ids():
+            channel = self.get_channel(channel_id)
+            if channel is None:
+                try:
+                    channel = await self.fetch_channel(channel_id)
+                except discord.HTTPException:
+                    LOGGER.warning("message_poll_channel_unavailable channel_id=%s", channel_id)
+                    continue
+
+            if not isinstance(channel, (discord.TextChannel, discord.Thread)):
+                LOGGER.info("message_poll_channel_unsupported channel_id=%s channel_type=%s", channel_id, type(channel).__name__)
+                continue
+
+            permissions = channel.permissions_for(channel.guild.me) if channel.guild and channel.guild.me else None
+            if permissions is not None and (not permissions.view_channel or not permissions.read_message_history):
+                LOGGER.warning(
+                    "message_poll_missing_permissions channel_id=%s view_channel=%s read_history=%s",
+                    channel_id,
+                    permissions.view_channel,
+                    permissions.read_message_history,
+                )
+                continue
+
+            try:
+                async for message in channel.history(limit=10):
+                    if message.author.bot:
+                        continue
+                    if message.id in self._processed_messages:
+                        continue
+                    if not message.attachments:
+                        continue
+                    await self._maybe_schedule_voice_message(message, source="poll")
+            except discord.HTTPException:
+                LOGGER.exception("message_poll_history_failed channel_id=%s", channel_id)
 
     async def _respond_ephemeral(self, interaction: discord.Interaction, text: str) -> None:
         if interaction.response.is_done():

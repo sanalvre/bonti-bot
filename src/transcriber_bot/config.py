@@ -21,6 +21,7 @@ class AppConfig:
     log_level: str = "INFO"
     hf_home: Optional[Path] = None
     reminder_poll_seconds: int = 30
+    message_poll_seconds: int = 15
     search_history_limit_per_channel: int = 600
     max_text_attachment_kb: int = 256
     local_timezone: str = "America/Los_Angeles"
@@ -49,6 +50,7 @@ def load_config() -> AppConfig:
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
         hf_home=Path(os.getenv("HF_HOME")).expanduser() if os.getenv("HF_HOME") else None,
         reminder_poll_seconds=max(5, _read_int("REMINDER_POLL_SECONDS", 30)),
+        message_poll_seconds=max(5, _read_int("MESSAGE_POLL_SECONDS", 15)),
         search_history_limit_per_channel=max(50, _read_int("SEARCH_HISTORY_LIMIT_PER_CHANNEL", 600)),
         max_text_attachment_kb=max(16, _read_int("MAX_TEXT_ATTACHMENT_KB", 256)),
         local_timezone=os.getenv("LOCAL_TIMEZONE", "America/Los_Angeles").strip() or "America/Los_Angeles",
