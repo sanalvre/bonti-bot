@@ -1,0 +1,2 @@
+"""Discord voice transcription bot."""
+
