@@ -109,3 +109,19 @@ class BotHelperTests(unittest.IsolatedAsyncioTestCase):
         self.state.set_channel_enabled(654, True)
 
         self.assertEqual(self.state.list_enabled_channel_ids(), [654])
+
+    def test_get_transcription_permission_issue_reports_missing_permissions(self) -> None:
+        permissions = SimpleNamespace(
+            view_channel=True,
+            read_message_history=False,
+            send_messages=True,
+            attach_files=False,
+        )
+        channel = SimpleNamespace(
+            guild=SimpleNamespace(me=object()),
+            permissions_for=lambda _: permissions,
+        )
+
+        issue = self.bot._get_transcription_permission_issue(channel)
+
+        self.assertEqual(issue, "missing permissions: Read Message History, Attach Files")

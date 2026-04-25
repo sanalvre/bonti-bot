@@ -100,6 +100,25 @@ class TranscriberBot(discord.Client):
             channel = await ensure_guild_channel(interaction)
             if channel is None:
                 return
+            permission_issue = self._get_transcription_permission_issue(channel)
+            if permission_issue is not None:
+                LOGGER.warning(
+                    "transcribe_channel_enable_blocked channel_id=%s channel_type=%s guild_id=%s channel_name=%s issue=%s",
+                    channel.id,
+                    type(channel).__name__,
+                    interaction.guild.id if interaction.guild else None,
+                    getattr(channel, "name", None),
+                    permission_issue,
+                )
+                await self._respond_ephemeral(
+                    interaction,
+                    (
+                        "I can't enable transcription here yet because the bot cannot fully access this channel.\n"
+                        f"Channel ID: `{channel.id}`\n"
+                        f"Issue: {permission_issue}"
+                    ),
+                )
+                return
             self.state.set_channel_enabled(channel.id, True)
             LOGGER.info(
                 "transcribe_channel_enabled channel_id=%s channel_type=%s guild_id=%s channel_name=%s",
@@ -575,6 +594,29 @@ class TranscriberBot(discord.Client):
             channel_id,
             reason,
         )
+
+    def _get_transcription_permission_issue(
+        self,
+        channel: discord.abc.GuildChannel | discord.Thread,
+    ) -> Optional[str]:
+        guild = getattr(channel, "guild", None)
+        if guild is None or guild.me is None:
+            return "bot member is not available in this guild cache"
+
+        permissions = channel.permissions_for(guild.me)
+        missing: list[str] = []
+        if not permissions.view_channel:
+            missing.append("View Channel")
+        if not permissions.read_message_history:
+            missing.append("Read Message History")
+        if not permissions.send_messages:
+            missing.append("Send Messages")
+        if not permissions.attach_files:
+            missing.append("Attach Files")
+
+        if missing:
+            return "missing permissions: " + ", ".join(missing)
+        return None
 
     async def _respond_ephemeral(self, interaction: discord.Interaction, text: str) -> None:
         if interaction.response.is_done():
