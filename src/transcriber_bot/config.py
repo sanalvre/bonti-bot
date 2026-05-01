@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import os
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+
+LOGGER = logging.getLogger("transcriber_bot.config")
 
 
 @dataclass(frozen=True)
@@ -41,6 +45,19 @@ def _read_model_fallbacks() -> tuple[str, ...]:
     return tuple(item for item in values if item)
 
 
+def _read_model_name() -> str:
+    requested = os.getenv("TRANSCRIBE_MODEL", "medium").strip() or "medium"
+    heavyweight_models = {"large-v3", "large-v3-turbo", "large-v2", "large-v1", "large"}
+    if requested in heavyweight_models:
+        LOGGER.warning(
+            "transcribe_model_overridden requested=%s active=%s",
+            requested,
+            "medium",
+        )
+        return "medium"
+    return requested
+
+
 def load_config() -> AppConfig:
     token = os.getenv("DISCORD_BOT_TOKEN", "").strip()
     if not token:
@@ -48,7 +65,7 @@ def load_config() -> AppConfig:
 
     return AppConfig(
         discord_bot_token=token,
-        model_name=os.getenv("TRANSCRIBE_MODEL", "medium").strip() or "medium",
+        model_name=_read_model_name(),
         model_fallbacks=_read_model_fallbacks(),
         ffmpeg_path=os.getenv("FFMPEG_PATH", "ffmpeg").strip() or "ffmpeg",
         db_path=Path(os.getenv("BOT_DB_PATH", "bot_state.sqlite3")),
