@@ -9,8 +9,8 @@ from typing import Optional
 @dataclass(frozen=True)
 class AppConfig:
     discord_bot_token: str
-    model_name: str = "large-v3-turbo"
-    model_fallbacks: tuple[str, ...] = ("medium", "small")
+    model_name: str = "medium"
+    model_fallbacks: tuple[str, ...] = ("small",)
     ffmpeg_path: str = "ffmpeg"
     db_path: Path = Path("bot_state.sqlite3")
     max_audio_seconds: int = 240
@@ -36,7 +36,7 @@ def _read_int(name: str, default: int) -> int:
 
 
 def _read_model_fallbacks() -> tuple[str, ...]:
-    raw_value = os.getenv("TRANSCRIBE_MODEL_FALLBACKS", "medium,small")
+    raw_value = os.getenv("TRANSCRIBE_MODEL_FALLBACKS", "small")
     values = [item.strip() for item in raw_value.split(",")]
     return tuple(item for item in values if item)
 
@@ -48,7 +48,7 @@ def load_config() -> AppConfig:
 
     return AppConfig(
         discord_bot_token=token,
-        model_name=os.getenv("TRANSCRIBE_MODEL", "large-v3-turbo").strip() or "large-v3-turbo",
+        model_name=os.getenv("TRANSCRIBE_MODEL", "medium").strip() or "medium",
         model_fallbacks=_read_model_fallbacks(),
         ffmpeg_path=os.getenv("FFMPEG_PATH", "ffmpeg").strip() or "ffmpeg",
         db_path=Path(os.getenv("BOT_DB_PATH", "bot_state.sqlite3")),

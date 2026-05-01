@@ -443,6 +443,12 @@ class TranscriberBot(discord.Client):
         LOGGER.info("voice_message_queue_start channel_id=%s message_id=%s", message.channel.id, message.id)
         async with channel_lock:
             async with self.global_semaphore:
+                LOGGER.info(
+                    "voice_message_processing_start channel_id=%s message_id=%s model=%s",
+                    message.channel.id,
+                    message.id,
+                    self.transcriber.active_model_name,
+                )
                 await self._handle_voice_message(message)
 
     async def _handle_voice_message(self, message: discord.Message) -> None:

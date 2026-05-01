@@ -35,6 +35,11 @@ class Transcriber:
 
     async def transcribe_bytes(self, audio_bytes: bytes) -> TranscriptResult:
         model = await self._get_model()
+        LOGGER.info(
+            "transcription_started model=%s bytes=%s",
+            self.active_model_name,
+            len(audio_bytes),
+        )
         pcm_audio = await asyncio.to_thread(self._decode_audio_to_float32, audio_bytes)
         segments, info = await asyncio.to_thread(
             model.transcribe,
@@ -45,6 +50,12 @@ class Transcriber:
         text = self._format_segments(segments)
         if not text:
             raise TranscriptionError("No speech was detected in the provided voice message.")
+        LOGGER.info(
+            "transcription_finished model=%s language=%s chars=%s",
+            self.active_model_name,
+            getattr(info, "language", None),
+            len(text),
+        )
         return TranscriptResult(text=text, language=getattr(info, "language", None))
 
     def build_transcript_file(self, message_id: int, transcript_text: str) -> io.BytesIO:
@@ -99,6 +110,10 @@ class Transcriber:
                         "Try a lighter model like `medium` or `small`."
                     ) from last_error
         return self._model
+
+    @property
+    def active_model_name(self) -> str:
+        return self._loaded_model_name or self.config.model_name
 
     def _decode_audio_to_float32(self, audio_bytes: bytes) -> np.ndarray:
         command = [

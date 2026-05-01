@@ -47,7 +47,8 @@ Set env vars:
 
 ```powershell
 $env:DISCORD_BOT_TOKEN="your-token-here"
-$env:TRANSCRIBE_MODEL="large-v3-turbo"
+$env:TRANSCRIBE_MODEL="medium"
+$env:TRANSCRIBE_MODEL_FALLBACKS="small"
 $env:FFMPEG_PATH="ffmpeg"
 $env:BOT_DB_PATH="bot_state.sqlite3"
 $env:MAX_AUDIO_SECONDS="240"
@@ -77,7 +78,8 @@ For Wispbyte:
 
 - startup command: `python -m src.transcriber_bot`
 - install command: `pip install -r requirements.txt`
-- if `large-v3-turbo` is too heavy, switch `TRANSCRIBE_MODEL` to `medium`
+- recommended hosted model: `medium`
+- fallback chain can be set with `TRANSCRIBE_MODEL_FALLBACKS`, for example `small`
 
 For Docker-style hosts:
 
